@@ -20,6 +20,7 @@ namespace MagicPodsCore
         Event<const std::vector<unsigned char>> _onResponseDataRecived{};
         Event<const BleAdertisingData> _onLeDataReceived{};        
         Event<const nlohmann::json> _onAnimationTriggered{};
+        Event<const std::vector<unsigned char>> _onHiResAudioReceived{};
         void OnResponseDataReceived(const std::vector<unsigned char> &data) override;
 
     public:
@@ -38,6 +39,11 @@ namespace MagicPodsCore
         Event<const nlohmann::json> &GetAnimationTriggered()
         {
             return _onAnimationTriggered;
+        }
+
+        Event<const std::vector<unsigned char>> &GetHiResAudioReceived()
+        {
+            return _onHiResAudioReceived;
         }
 
         void SendData(const AapRequest &setter);

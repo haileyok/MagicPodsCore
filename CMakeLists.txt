@@ -19,6 +19,7 @@ add_executable(magicpodscore
 
     src/sdk/aap/Aes.cpp
     src/sdk/aap/AapHelper.cpp
+    src/sdk/aap/AapHiResAudio.cpp
     src/sdk/aap/setters/AapEnableNotifications.cpp
     src/sdk/aap/setters/AapInit.cpp
     src/sdk/aap/setters/AapInitExt.cpp
@@ -35,6 +36,8 @@ add_executable(magicpodscore
     src/sdk/aap/setters/AapSetMuteMicrophoneEndCall.cpp
     src/sdk/aap/setters/AapSetAdaptiveAudioNoise.cpp
     src/sdk/aap/setters/AapPrivateKeys.cpp
+    src/sdk/aap/setters/AapHiResMicStart.cpp
+    src/sdk/aap/setters/AapHiResMicStop.cpp
 
     src/sdk/aap/watchers/AapAncWatcher.cpp
     src/sdk/aap/watchers/AapBatteryWatcher.cpp
@@ -74,6 +77,7 @@ add_executable(magicpodscore
     src/device/capabilities/aap/AapMuteMicrophoneEndCallCapability.cpp
     src/device/capabilities/aap/AapAdaptiveAudioNoiseCapability.cpp
     src/device/capabilities/aap/AppAnimationCapability.cpp
+    src/device/capabilities/aap/AapHiResMicCapability.cpp
 
     src/device/capabilities/sgb/GalaxyBudsCapability.cpp
     src/device/capabilities/sgb/GalaxyBudsAncCapability.cpp
@@ -103,6 +107,7 @@ add_executable(magicpodscore
 add_subdirectory(dependencies)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PULSEAUDIO REQUIRED libpulse)
+pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec libavutil)
 find_package(OpenSSL REQUIRED)
 target_include_directories(magicpodscore PRIVATE
     src
@@ -118,4 +123,5 @@ target_link_libraries(magicpodscore PRIVATE
     bluetooth
     OpenSSL::Crypto
     ${PULSEAUDIO_LIBRARIES}
+    PkgConfig::AVCODEC
 )

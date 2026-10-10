@@ -17,6 +17,7 @@
 #include "capabilities/aap/AapAdaptiveAudioNoiseCapability.h"
 #include "capabilities/aap/AapBatteryCapability.h"
 #include "capabilities/aap/AppAnimationCapability.h"
+#include "capabilities/aap/AapHiResMicCapability.h"
 #include "sdk/aap/setters/AapInit.h"
 #include "sdk/aap/setters/AapInitExt.h"
 #include "sdk/aap/setters/AapEnableNotifications.h"
@@ -27,6 +28,15 @@ namespace MagicPodsCore
 {
     void AapDevice::OnResponseDataReceived(const std::vector<unsigned char> &data)
     {
+        // Type-0x58 audio SDUs are diverted here, before normal opcode
+        // dispatch, so they never hit unknown-opcode logging spam (the
+        // hi-res mic capability owns them while a capture is active).
+        if (AapHiResAudio::IsAudio(data))
+        {
+            _onHiResAudioReceived.FireEvent(data);
+            return;
+        }
+
         _onResponseDataRecived.FireEvent(data);
     }
 
@@ -75,6 +85,7 @@ namespace MagicPodsCore
         device->capabilities.push_back(std::make_unique<AapMuteMicrophoneEndCallCapability>(*device));
         device->capabilities.push_back(std::make_unique<AapAdaptiveAudioNoiseCapability>(*device));
         device->capabilities.push_back(std::make_unique<AppAnimationCapability>(*device));
+        device->capabilities.push_back(std::make_unique<AapHiResMicCapability>(*device));
 
         device->_clientStartData.push_back(AapInit{}.Request());
         device->_clientStartData.push_back(AapEnableNotifications{AapNotificationsMode::Unknown2}.Request());

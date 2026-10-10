@@ -53,8 +53,11 @@ namespace MagicPodsCore {
         writingThread.detach();
 
         std::thread readingThread([this]() {
-            unsigned char buffer[1024];
-            std::vector<unsigned char> vectorBuffer(1024); // optimize
+            // 0x58 hi-res audio SDUs can exceed 1 KB; SOCK_SEQPACKET
+            // silently truncates an undersized recv buffer, so this must
+            // comfortably exceed the largest SDU the device sends.
+            unsigned char buffer[4096];
+            std::vector<unsigned char> vectorBuffer(4096); // optimize
             while(_isStarted) {
                 memset(buffer, 0, sizeof(buffer));
                 ssize_t receivedBytesLength = recv(_socket, buffer, sizeof(buffer), 0);
