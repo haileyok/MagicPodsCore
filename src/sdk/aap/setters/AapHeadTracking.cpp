@@ -183,14 +183,19 @@ namespace MagicPodsCore
 
     bool AapHeadTrackingDecode::IsSensorReport(const std::vector<unsigned char> &frame)
     {
-        // AACP header 04 00 04 00, opcode 0x17, then protobuf SensorDataWX.
+        // Frame layout (verified against live captures):
+        //   04 00 04 00 17 00 00 00 | 10 00 | <plen u16 LE> | protobuf...
+        //   byte[8] = 0x10 marker, byte[10..11] = plen (varies!), byte[12] =
+        //   0x08 (protobuf field-1 tag), byte[13] = seq (varies!).
         if (frame.size() < 14)
             return false;
         if (frame[0] != 0x04 || frame[2] != 0x04)
             return false;
         if (frame[4] != 0x17 || frame[5] != 0x00)
             return false;
-        if (frame[10] != 0x10 || frame[12] != 0x08 || frame[13] != 0x10)
+        if (frame[8] != 0x10 || frame[9] != 0x00)
+            return false;
+        if (frame[12] != 0x08)
             return false;
         return true;
     }
