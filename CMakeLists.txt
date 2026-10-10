@@ -38,6 +38,14 @@ add_executable(magicpodscore
     src/sdk/aap/setters/AapPrivateKeys.cpp
     src/sdk/aap/setters/AapHiResMicStart.cpp
     src/sdk/aap/setters/AapHiResMicStop.cpp
+    src/sdk/aap/setters/AapHijackRequest.cpp
+    src/sdk/aap/setters/AapHijackReversed.cpp
+    src/sdk/aap/setters/AapMediaInformation.cpp
+    src/sdk/aap/setters/AapMediaInformationNewDevice.cpp
+    src/sdk/aap/setters/AapRequestNotifications.cpp
+    src/sdk/aap/setters/AapSetFeatureFlags.cpp
+    src/sdk/aap/setters/AapSmartRoutingMac.cpp
+    src/sdk/aap/setters/AapSmartRoutingShowUI.cpp
 
     src/sdk/aap/watchers/AapAncWatcher.cpp
     src/sdk/aap/watchers/AapBatteryWatcher.cpp
@@ -78,6 +86,7 @@ add_executable(magicpodscore
     src/device/capabilities/aap/AapAdaptiveAudioNoiseCapability.cpp
     src/device/capabilities/aap/AppAnimationCapability.cpp
     src/device/capabilities/aap/AapHiResMicCapability.cpp
+    src/device/capabilities/aap/AapHandoffCapability.cpp
 
     src/device/capabilities/sgb/GalaxyBudsCapability.cpp
     src/device/capabilities/sgb/GalaxyBudsAncCapability.cpp

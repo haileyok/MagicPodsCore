@@ -65,6 +65,11 @@ namespace MagicPodsCore {
         bool IsBluetoothAdapterPowered() {
             return _dbusService.IsBluetoothAdapterPowered().GetValue();
         }
+
+        // MAC address of the default bluetooth adapter, or "" if unreadable.
+        std::string GetDefaultBluetoothAdapterAddress() {
+            return _dbusService.GetDefaultBluetoothAdapterAddress();
+        }
         void EnableBluetoothAdapter(); // TODO: выпилить?
         void EnableBluetoothAdapterAsync(std::function<void(const sdbus::Error*)>&& callback);
         void DisableBluetoothAdapter(); // TODO: выпилить?

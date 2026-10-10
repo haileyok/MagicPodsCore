@@ -31,6 +31,14 @@ namespace MagicPodsCore {
         FetchDevices();
     }
 
+    std::string DBusService::GetDefaultBluetoothAdapterAddress() {
+        try {
+            return _defaultBluetoothAdapterProxy->getProperty("Address").onInterface("org.bluez.Adapter1").get<std::string>();
+        } catch (const sdbus::Error& e) {
+            return "";
+        }
+    }
+
     std::set<std::shared_ptr<DBusDeviceInfo>> DBusService::GetAllDevices() {
         std::set<std::shared_ptr<DBusDeviceInfo>> devices;
         for (const auto& [path, device] : _knownDevices) {

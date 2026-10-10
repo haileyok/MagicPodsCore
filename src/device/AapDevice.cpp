@@ -18,9 +18,12 @@
 #include "capabilities/aap/AapBatteryCapability.h"
 #include "capabilities/aap/AppAnimationCapability.h"
 #include "capabilities/aap/AapHiResMicCapability.h"
+#include "capabilities/aap/AapHandoffCapability.h"
 #include "sdk/aap/setters/AapInit.h"
 #include "sdk/aap/setters/AapInitExt.h"
 #include "sdk/aap/setters/AapEnableNotifications.h"
+#include "sdk/aap/setters/AapRequestNotifications.h"
+#include "sdk/aap/setters/AapSetFeatureFlags.h"
 #include "sdk/aap/setters/AapPrivateKeys.h"
 #include "capabilities/cmn/CmnBluetoothCodecCapability.h"
 
@@ -43,7 +46,8 @@ namespace MagicPodsCore
     AapDevice::AapDevice(std::shared_ptr<DBusDeviceInfo> deviceInfo,
         std::shared_ptr<PulseAudioClient> audioClient,
         std::shared_ptr<SettingsService> settingsService,
-        std::shared_ptr<DBusBasedBleAdvertisingService> bleService) : Device(deviceInfo, audioClient, settingsService), _bleService{bleService}
+        std::shared_ptr<DBusBasedBleAdvertisingService> bleService,
+        std::string selfMac) : Device(deviceInfo, audioClient, settingsService), _bleService{bleService}, _selfMac{std::move(selfMac)}
     {
         _getOnAdReceivedEventId = _bleService->GetOnAdReceivedEvent().Subscribe([this](size_t id,  const MagicPodsCore::BleAdertisingData& adData){
             _onLeDataReceived.FireEvent(adData);
@@ -66,9 +70,9 @@ namespace MagicPodsCore
         _onAnimationTriggered.FireEvent(json);
     }
 
-    std::unique_ptr<AapDevice> AapDevice::Create(std::shared_ptr<DBusDeviceInfo> deviceInfo, std::shared_ptr<PulseAudioClient> audioClient, std::shared_ptr<SettingsService> settingsService, std::shared_ptr<DBusBasedBleAdvertisingService> bleService)
+    std::unique_ptr<AapDevice> AapDevice::Create(std::shared_ptr<DBusDeviceInfo> deviceInfo, std::shared_ptr<PulseAudioClient> audioClient, std::shared_ptr<SettingsService> settingsService, std::shared_ptr<DBusBasedBleAdvertisingService> bleService, std::string selfMac)
     {
-        auto device = std::make_unique<AapDevice>(deviceInfo, audioClient, settingsService, bleService);
+        auto device = std::make_unique<AapDevice>(deviceInfo, audioClient, settingsService, bleService, std::move(selfMac));
 
         device->capabilities.push_back(std::make_unique<CmnBluetoothCodecCapability>(*device));
         device->capabilities.push_back(std::make_unique<AapBatteryCapability>(*device));
@@ -86,12 +90,20 @@ namespace MagicPodsCore
         device->capabilities.push_back(std::make_unique<AapAdaptiveAudioNoiseCapability>(*device));
         device->capabilities.push_back(std::make_unique<AppAnimationCapability>(*device));
         device->capabilities.push_back(std::make_unique<AapHiResMicCapability>(*device));
+        device->capabilities.push_back(std::make_unique<AapHandoffCapability>(*device, device->GetSelfMac()));
 
         device->_clientStartData.push_back(AapInit{}.Request());
         device->_clientStartData.push_back(AapEnableNotifications{AapNotificationsMode::Unknown2}.Request());
         device->_clientStartData.push_back(AapEnableNotifications{AapNotificationsMode::Unknown1}.Request());
         if (AapInitExt::IsSupported(deviceInfo->GetProductId()))
             device->_clientStartData.push_back(AapInitExt{}.Request());
+
+        // Feature flags + notification subscription (LibrePods connect-time
+        // packets): these make the buds report their connected-device list
+        // (0x2E) and audio source (0x0E) updates to the handoff capability.
+        // No handoff action ever fires from these updates alone.
+        device->_clientStartData.push_back(AapSetFeatureFlags{}.Request());
+        device->_clientStartData.push_back(AapRequestNotifications{}.Request());
         
         if (!device->LoadSettingString("irk").has_value() || !device->LoadSettingString("enc").has_value())
             device->_clientStartData.push_back(AapPrivateKeys{}.Request());

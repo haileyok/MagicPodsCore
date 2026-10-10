@@ -177,7 +177,7 @@ DevicesInfoFetcher::~DevicesInfoFetcher()
         }
 
         if (AapHelper::IsAapDevice(deviceInfo->GetVendorId(), deviceInfo->GetProductId())){
-            auto newDevice = AapDevice::Create(deviceInfo, _audioClient, _settingsService, _bleService);
+            auto newDevice = AapDevice::Create(deviceInfo, _audioClient, _settingsService, _bleService, _dbusService.GetDefaultBluetoothAdapterAddress());
             newDevice->GetConnectedPropertyChangedEvent().Subscribe([this](size_t listenerId, bool newValue) {
                 TrySelectNewActiveDevice();
             });
