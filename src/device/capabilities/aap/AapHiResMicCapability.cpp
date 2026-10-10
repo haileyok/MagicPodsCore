@@ -594,6 +594,12 @@ namespace MagicPodsCore
     // The AirPods' A2DP transport can end up in a corrupted state after a
     // 0x58 mic start/stop; suspending and resuming the bluez card profile
     // fixes it. This is what the iOS app implicitly does.
+    //
+    // 2026-10-10 fix: only run the off->restore dance from a known-good A2DP
+    // profile, and verify the restore landed. Previously a stale or
+    // headset-head-unit activeProfile was captured and restored, which could
+    // park the card in 8 kHz HFP indefinitely ("spotify sounds garbage")
+    // and tear down the just-started capture ("meet doesn't pick up mic").
     void AapHiResMicCapability::ResetA2dp()
     {
         auto audioClient = device.GetAudioClient();
@@ -608,9 +614,47 @@ namespace MagicPodsCore
             return;
         }
 
-        Logger::Info("HiResMic: reset A2DP transport: %s off -> %s", card.c_str(), info->activeProfile.c_str());
+        // Only ever restore an A2DP profile. If the card is currently in a
+        // headset profile (or off), pick the best available A2DP profile from
+        // the card's profile list instead of echoing a bad state back.
+        std::string restore = info->activeProfile;
+        if (restore.rfind("a2dp", 0) != 0)
+        {
+            restore.clear();
+            for (const auto& p : info->profiles)
+            {
+                if (p.first.rfind("a2dp", 0) == 0)
+                {
+                    // first a2dp profile in list order (highest priority)
+                    restore = p.first;
+                    break;
+                }
+            }
+            if (restore.empty())
+            {
+                Logger::Warn("HiResMic: no A2DP profile available on %s; skipping A2DP reset", card.c_str());
+                return;
+            }
+            Logger::Info("HiResMic: active profile %s is not A2DP; restoring to %s instead",
+                         info->activeProfile.c_str(), restore.c_str());
+        }
+
+        Logger::Info("HiResMic: reset A2DP transport: %s off -> %s", card.c_str(), restore.c_str());
         audioClient->SetCardProfile(card, "off");
-        audioClient->SetCardProfile(card, info->activeProfile);
+        audioClient->SetCardProfile(card, restore);
+
+        // Verify the restore landed; one retry if a race made it stick at
+        // something else (never leave the card parked in a headset profile).
+        auto after = audioClient->GetCardInfoByName(card);
+        if (after.has_value() && after->activeProfile.rfind("a2dp", 0) != 0)
+        {
+            Logger::Warn("HiResMic: A2DP reset landed on %s; retrying once", after->activeProfile.c_str());
+            audioClient->SetCardProfile(card, restore);
+            after = audioClient->GetCardInfoByName(card);
+            if (after.has_value() && after->activeProfile.rfind("a2dp", 0) != 0)
+                Logger::Error("HiResMic: A2DP reset failed to restore %s (stuck at %s)",
+                              restore.c_str(), after->activeProfile.c_str());
+        }
     }
 
     // ---------------------------------------------------------------------------
