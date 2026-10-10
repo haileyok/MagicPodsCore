@@ -7,6 +7,7 @@
 #include "AapRequest.h"
 
 #include <array>
+#include <optional>
 #include <vector>
 
 namespace MagicPodsCore
