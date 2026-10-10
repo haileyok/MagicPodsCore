@@ -100,6 +100,20 @@ void DBusBasedBleAdvertisingService::StartScan(bool isPassive)
     std::map<std::string, sdbus::Variant> filter;
     filter.emplace("Transport", sdbus::Variant("le"));
     filter.emplace("DuplicateData", sdbus::Variant(true)); // Add this line to receive duplicate data
+    // Only Apple (company 0x004C) manufacturer-data advertisements. Without
+    // this the continuous LE scan floods D-Bus with every nearby device's
+    // packets (~200 USB interrupts/sec sustained), costing frame pacing on
+    // high-refresh displays. The consumers of GetOnAdReceivedEvent only ever
+    // parse Apple continuity ads (type 0x07/0x08 etc. under company 0x004C),
+    // so nothing else was ever used anyway.
+    {
+        std::map<uint16_t, sdbus::Variant> apple{};
+        // Value bytes are "condition" mask+data pairs (len must match: data
+        // must be >= mask and (data & mask) == data per BlueZ docs). An empty
+        // mask matches any advertisement carrying this company ID.
+        apple.emplace(0x004C, sdbus::Variant(std::vector<uint8_t>{}));
+        filter.emplace("ManufacturerData", sdbus::Variant(apple));
+    }
     try {
         _dbusService.SetDiscoveryFilter(filter);
     } catch (const sdbus::Error& e) {
