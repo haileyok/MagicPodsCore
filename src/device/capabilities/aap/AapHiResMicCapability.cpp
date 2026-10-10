@@ -287,6 +287,7 @@ namespace MagicPodsCore
     nlohmann::json AapHiResMicCapability::CreateJsonBody()
     {
         auto bodyJson = nlohmann::json::object();
+        bodyJson["enabled"] = _enabled.load();
         bodyJson["active"] = _capturing.load();
         bodyJson["level"] = _level.load();
         return bodyJson;
