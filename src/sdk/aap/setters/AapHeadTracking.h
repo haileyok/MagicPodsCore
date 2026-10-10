@@ -1,0 +1,108 @@
+// MagicPodsCore: https://github.com/steam3d/MagicPodsCore
+// Copyright: 2020-2026 Aleksandr Maslov <https://magicpods.app> & Andrei Litvintsev <a.a.litvintsev@gmail.com>
+// License: GPL-3.0
+
+#pragma once
+
+#include "AapRequest.h"
+
+#include <array>
+#include <vector>
+
+namespace MagicPodsCore
+{
+    // ---------------------------------------------------------------------------
+    // Head tracking (AACP opcode 0x17) — verified live on AirPods Pro 2
+    // (2026-10-10, goal-002).
+    //
+    // The buds only honor a 0x17 START after the RTBuddy service-init dance
+    // (connect service 0, capabilities, connect service 4, capabilities) has
+    // established the sensor-service context — sent with 180/220 ms pacing;
+    // without it the buds TERMINATE the L2CAP channel on the start packet.
+    // Source of the working sequence: FIocker/aap-head-tracker (confirmed on
+    // AirPods Max 2 / fw 8E258) cross-checked against the apple-wireshark
+    // RTBuddy grammar (SensorDataWX / DEVMOTION6 = service 16).
+    //
+    // Sensor reports arrive as opcode 0x17 frames: AACP header
+    // (04 00 04 00 17 00 00 00) + plen u16 + protobuf SensorDataWX
+    // { f1: seq, f2: log_type, f7: Command{ f1: service (16), f3: payload } }.
+    // The 58-byte payload carries a signed Q15 quaternion (x, y, z int16 LE)
+    // at bytes 34..39; w = sqrt(1 - x^2 - y^2 - z^2). Validated by rotating
+    // the gravity vector with the quaternion across ~1000 frames (constant
+    // world gravity with the buds stationary), the same method FIocker used.
+    // ---------------------------------------------------------------------------
+
+    // RTBuddy service-init dance (four packets, sent with pacing).
+    class AapRtBuddyConnectService0 : public AapRequest
+    {
+    public:
+        AapRtBuddyConnectService0();
+        std::vector<unsigned char> Request() const override;
+    };
+
+    class AapRtBuddyCapabilitiesService0 : public AapRequest
+    {
+    public:
+        AapRtBuddyCapabilitiesService0();
+        std::vector<unsigned char> Request() const override;
+    };
+
+    class AapRtBuddyConnectService4 : public AapRequest
+    {
+    public:
+        AapRtBuddyConnectService4();
+        std::vector<unsigned char> Request() const override;
+    };
+
+    class AapRtBuddyCapabilitiesService4 : public AapRequest
+    {
+    public:
+        AapRtBuddyCapabilitiesService4();
+        std::vector<unsigned char> Request() const override;
+    };
+
+    // 0x17 start/stop packets. The body encodes an RTBuddy SensorDataWX
+    // ServiceSetting: service DEVMOTION6 (16), mode 2, interval 20,000 us
+    // (50 Hz). The "legacy" variant is the LibrePods/Android form (service
+    // 0x0E framing); both are tried in order at runtime.
+    class AapHeadTrackingStart : public AapRequest
+    {
+    public:
+        explicit AapHeadTrackingStart(bool legacy = false);
+        std::vector<unsigned char> Request() const override;
+
+    private:
+        bool _legacy{false};
+    };
+
+    class AapHeadTrackingStop : public AapRequest
+    {
+    public:
+        explicit AapHeadTrackingStop(bool legacy = false);
+        std::vector<unsigned char> Request() const override;
+
+    private:
+        bool _legacy{false};
+    };
+
+    // Parsed orientation sample.
+    struct AapHeadTrackingSample
+    {
+        double w{};
+        double x{};
+        double y{};
+        double z{};
+    };
+
+    // Decode helpers for the 0x17 sensor-report frames (payload-level).
+    namespace AapHeadTrackingDecode
+    {
+        // True when the frame looks like a sensor report (protobuf
+        // SensorDataWX with a DEVMOTION6 command payload).
+        bool IsSensorReport(const std::vector<unsigned char> &frame);
+
+        // Extract the Q15 quaternion from a sensor-report frame.
+        // Returns nullopt when the frame has no decodable quaternion.
+        std::optional<AapHeadTrackingSample> DecodeFrame(const std::vector<unsigned char> &frame);
+    }
+}
