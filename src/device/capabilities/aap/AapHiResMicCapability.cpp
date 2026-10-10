@@ -122,30 +122,51 @@ namespace MagicPodsCore
 
         // Load module-pipe-source for the hi-res mic FIFO. Returns the module
         // index, or nullopt on failure.
+        //
+        // 2026-10-10 fix: the module is now loaded by spawning `pactl
+        // load-module` instead of pa_context_load_module on our own
+        // short-lived PA context. Both create the source node, but streams
+        // refused to route to the source created via the in-process context
+        // (every capture silently fell back to the default/EE source) while
+        // the identical module loaded via pactl routed perfectly — verified
+        // side by side with hand-loaded test modules on PipeWire. pactl
+        // output "<index>\n" is parsed for the module index (needed for
+        // unload).
         std::optional<uint32_t> LoadPipeSourceModule(const std::string &fifo)
         {
-            PulseSession session{};
-            if (!session.Connect())
-                return std::nullopt;
-
             std::string args = std::string{"source_name="} + SourceName
                 + " file=" + fifo
                 + " format=s16le rate=" + std::to_string(AapHiResAudio::SampleRate)
                 + " channels=" + std::to_string(AapHiResAudio::Channels)
                 + " channel_map=mono"
-                + " source_properties=\"device.description='AirPods Hi-Res Mic' node.driver=false priority.driver=0\"";
+                + " source_properties=device.description=AirPods_HiRes_Mic node.driver=false priority.driver=0";
 
-            uint32_t moduleIndex = std::numeric_limits<uint32_t>::max();
-            session.Drive(pa_context_load_module(
-                session.ctx, "module-pipe-source", args.c_str(),
-                [](pa_context *, uint32_t index, void *userdata) {
-                    *static_cast<uint32_t *>(userdata) = index;
-                },
-                &moduleIndex));
-
-            if (moduleIndex == std::numeric_limits<uint32_t>::max())
+            std::string cmd = "pactl load-module module-pipe-source " + args + " 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "r");
+            if (!pipe)
                 return std::nullopt;
-            return moduleIndex;
+
+            std::string output;
+            char buf[64];
+            while (fgets(buf, sizeof(buf), pipe) != nullptr)
+                output += buf;
+            int status = pclose(pipe);
+            if (status != 0)
+            {
+                Logger::Error("HiResMic: pactl load-module failed (status %d)", status);
+                return std::nullopt;
+            }
+
+            try
+            {
+                uint32_t moduleIndex = static_cast<uint32_t>(std::stoul(output));
+                return moduleIndex;
+            }
+            catch (const std::exception&)
+            {
+                Logger::Error("HiResMic: could not parse pactl module index from '%s'", output.c_str());
+                return std::nullopt;
+            }
         }
 
         void UnloadPulseModule(uint32_t index)
