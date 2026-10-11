@@ -86,13 +86,24 @@ namespace MagicPodsCore
         bool _legacy{false};
     };
 
-    // Parsed orientation sample.
+    // Parsed sensor sample from a DEVMOTION6 report (AirPods Pro 2 payload
+    // layout, identified via phase-correlated motion captures 2026-10-10):
+    //   bud-A gyro (yaw, pitch, roll) at payload offsets 26/28/30,
+    //   accel gravity vector at payload offsets 33/44/46 (non-contiguous),
+    //   offsets 34..39 carry the stored neutral-pose reference quaternion
+    //   (constant per pose, not live).
     struct AapHeadTrackingSample
     {
-        double w{};
-        double x{};
-        double y{};
-        double z{};
+        double gyroYaw{};    // raw units, bud A
+        double gyroPitch{};  // raw units, bud A
+        double gyroRoll{};   // raw units, bud A
+        double accelX{};
+        double accelY{};
+        double accelZ{};
+        double neutralW{};
+        double neutralX{};
+        double neutralY{};
+        double neutralZ{};
     };
 
     // Decode helpers for the 0x17 sensor-report frames (payload-level).
@@ -102,8 +113,8 @@ namespace MagicPodsCore
         // SensorDataWX with a DEVMOTION6 command payload).
         bool IsSensorReport(const std::vector<unsigned char> &frame);
 
-        // Extract the Q15 quaternion from a sensor-report frame.
-        // Returns nullopt when the frame has no decodable quaternion.
+        // Extract the bud-A gyro triple + accel vector from a sensor-report
+        // frame. Returns nullopt when the frame is not decodable.
         std::optional<AapHeadTrackingSample> DecodeFrame(const std::vector<unsigned char> &frame);
     }
 }

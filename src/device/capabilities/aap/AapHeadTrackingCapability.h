@@ -34,20 +34,34 @@ namespace MagicPodsCore
     private:
         static constexpr std::chrono::milliseconds RtBuddyPaceEven{180};
         static constexpr std::chrono::milliseconds RtBuddyPaceOdd{220};
-        static constexpr std::chrono::milliseconds StartTimeout{3000};
+
+        // Gyro raw -> deg/s scale (calibration pending a scripted 90° capture;
+        // 45°-excursion assumption: 0.0723 deg/raw — see goal-002 notes).
+        static constexpr double GyroScaleDegPerRaw = 0.0723;
+        // Stationary-detection: |gyro| under this (deg/s) => hold heading.
+        static constexpr double StillThresholdDegPerS = 1.0;
+        // Complementary-filter accel correction gain (per update).
+        static constexpr double AccelCorrectionGain = 0.02;
 
         std::atomic<bool> _enabled{false};
         std::atomic<bool> _tracking{false};
         std::atomic<bool> _stopping{false};
         std::atomic<size_t> _frameCount{0};
-        std::chrono::steady_clock::time_point _lastFrame{};
+        std::chrono::steady_clock::time_point _lastFrameTime{};
 
+        // Fusion state (guarded by _sampleMutex)
         mutable std::mutex _sampleMutex{};
+        double _yaw{0.0};      // deg, fused
+        double _pitch{0.0};    // deg, fused
+        double _roll{0.0};     // deg, fused
+        bool _haveGravity{false};
+        double _gravX{0.0};
+        double _gravY{0.0};
+        double _gravZ{0.0};
         std::optional<AapHeadTrackingSample> _lastSample{};
         bool _legacyStart{false};
 
-        size_t _connectedEventId{};
-
+        void OnSample(const AapHeadTrackingSample &sample, double dt);
         void StartTracking();
         void StopTracking();
         void FireStateChanged();

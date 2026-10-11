@@ -219,32 +219,38 @@ namespace MagicPodsCore
                 WireField cmd{};
                 while (NextField(frame, cpos, cend, cmd))
                 {
-                    if (cmd.number == 1 && cmd.wireType == 0 && cmd.varint == 16)
+                    if (cmd.number == 3 && cmd.wireType == 2 && cmd.length >= 48)
                     {
-                        // DEVMOTION6 command: service found; find payload f3
-                    }
-                    if (cmd.number == 3 && cmd.wireType == 2 && cmd.length >= 40)
-                    {
-                        // Payload: record header (2) + timestamp (8) + sensor
-                        // entries (~24) + Q15 quaternion at 34..39.
-                        const size_t off = cmd.offset + 34;
-                        if (off + 6 > cmd.offset + cmd.length)
-                            return std::nullopt;
-                        int16_t x{}, y{}, z{};
-                        std::memcpy(&x, frame.data() + off, 2);
-                        std::memcpy(&y, frame.data() + off + 2, 2);
-                        std::memcpy(&z, frame.data() + off + 4, 2);
-                        double qx = x / 32768.0;
-                        double qy = y / 32768.0;
-                        double qz = z / 32768.0;
-                        double s = qx * qx + qy * qy + qz * qz;
-                        if (s > 1.0)
-                            return std::nullopt;
+                        const unsigned char *p = frame.data() + cmd.offset;
+                        const size_t plen = cmd.length;
+
+                        auto readI16 = [&](size_t off) -> int16_t {
+                            int16_t v{};
+                            std::memcpy(&v, p + off, 2);
+                            return v;
+                        };
+
                         AapHeadTrackingSample sample{};
-                        sample.w = std::sqrt(1.0 - s);
-                        sample.x = qx;
-                        sample.y = qy;
-                        sample.z = qz;
+                        // bud-A gyro triple (yaw, pitch, roll)
+                        sample.gyroYaw = readI16(26);
+                        sample.gyroPitch = readI16(28);
+                        sample.gyroRoll = readI16(30);
+                        // accel gravity vector (non-contiguous cluster)
+                        sample.accelX = readI16(33);
+                        sample.accelY = readI16(44);
+                        sample.accelZ = readI16(46);
+                        // stored neutral-pose reference quaternion (Q15)
+                        {
+                            double qx = readI16(34) / 32768.0;
+                            double qy = readI16(36) / 32768.0;
+                            double qz = readI16(38) / 32768.0;
+                            double s = qx * qx + qy * qy + qz * qz;
+                            sample.neutralW = s <= 1.0 ? std::sqrt(1.0 - s) : 0.0;
+                            sample.neutralX = qx;
+                            sample.neutralY = qy;
+                            sample.neutralZ = qz;
+                        }
+                        (void)plen;
                         return sample;
                     }
                 }
