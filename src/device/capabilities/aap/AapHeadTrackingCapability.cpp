@@ -100,18 +100,10 @@ namespace MagicPodsCore
             return;
 
         _frameCount.store(0);
-        _lastFrame = std::chrono::steady_clock::now();
+        _lastFrameTime = std::chrono::steady_clock::now();
 
         // RTBuddy service-init dance (mandatory: without it the buds drop the
         // channel on the 0x17 start; pacing 180/220 ms per FIocker).
-        const std::pair<const char *, AapRequest *> dance[4] = {
-            {"rtbuddy connect svc0", nullptr},
-            {"rtbuddy caps svc0", nullptr},
-            {"rtbuddy connect svc4", nullptr},
-            {"rtbuddy caps svc4", nullptr},
-        };
-        (void)dance; // silence unused when refactored
-
         AapRtBuddyConnectService0 c0{};
         SendData(c0);
         std::this_thread::sleep_for(RtBuddyPaceEven);
