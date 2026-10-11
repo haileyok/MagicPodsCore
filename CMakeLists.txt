@@ -46,7 +46,6 @@ add_executable(magicpodscore
     src/sdk/aap/setters/AapSetFeatureFlags.cpp
     src/sdk/aap/setters/AapSmartRoutingMac.cpp
     src/sdk/aap/setters/AapSmartRoutingShowUI.cpp
-    src/sdk/aap/setters/AapHeadTracking.cpp
 
     src/sdk/aap/watchers/AapAncWatcher.cpp
     src/sdk/aap/watchers/AapBatteryWatcher.cpp
@@ -88,7 +87,6 @@ add_executable(magicpodscore
     src/device/capabilities/aap/AppAnimationCapability.cpp
     src/device/capabilities/aap/AapHiResMicCapability.cpp
     src/device/capabilities/aap/AapHandoffCapability.cpp
-    src/device/capabilities/aap/AapHeadTrackingCapability.cpp
 
     src/device/capabilities/sgb/GalaxyBudsCapability.cpp
     src/device/capabilities/sgb/GalaxyBudsAncCapability.cpp

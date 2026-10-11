@@ -19,7 +19,6 @@
 #include "capabilities/aap/AppAnimationCapability.h"
 #include "capabilities/aap/AapHiResMicCapability.h"
 #include "capabilities/aap/AapHandoffCapability.h"
-#include "capabilities/aap/AapHeadTrackingCapability.h"
 #include "sdk/aap/setters/AapInit.h"
 #include "sdk/aap/setters/AapInitExt.h"
 #include "sdk/aap/setters/AapEnableNotifications.h"
@@ -92,7 +91,6 @@ namespace MagicPodsCore
         device->capabilities.push_back(std::make_unique<AppAnimationCapability>(*device));
         device->capabilities.push_back(std::make_unique<AapHiResMicCapability>(*device));
         device->capabilities.push_back(std::make_unique<AapHandoffCapability>(*device, device->GetSelfMac()));
-        device->capabilities.push_back(std::make_unique<AapHeadTrackingCapability>(*device));
 
         device->_clientStartData.push_back(AapInit{}.Request());
         device->_clientStartData.push_back(AapEnableNotifications{AapNotificationsMode::Unknown2}.Request());
