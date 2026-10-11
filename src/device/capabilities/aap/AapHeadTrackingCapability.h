@@ -35,9 +35,14 @@ namespace MagicPodsCore
         static constexpr std::chrono::milliseconds RtBuddyPaceEven{180};
         static constexpr std::chrono::milliseconds RtBuddyPaceOdd{220};
 
-        // Gyro raw -> deg/s scale (calibration pending a scripted 90° capture;
-        // 45°-excursion assumption: 0.0723 deg/raw — see goal-002 notes).
-        static constexpr double GyroScaleDegPerRaw = 0.0723;
+        // Gyro raw -> deg/s scale, calibrated 2026-10-11 (goal-002): a scripted
+        // 90°-turn capture held a stable 512.7 raw*s plateau => 0.17555 deg/raw.
+        // Cross-checked against the earlier full-sweep capture: its 622 raw*s
+        // total = ~109° of combined left+right turning, consistent with the
+        // instructed left/hold/right/hold/center sequence. The accel gravity
+        // vector confirmed pure yaw (only 2.9° incidental tilt during the 90°
+        // turn — gravity is invariant under yaw, as expected).
+        static constexpr double GyroScaleDegPerRaw = 0.17555;
         // Stationary-detection: |gyro| under this (deg/s) => hold heading.
         static constexpr double StillThresholdDegPerS = 1.0;
         // Complementary-filter accel correction gain (per update).
