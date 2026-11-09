@@ -9,7 +9,9 @@
 
 #include <memory>
 #include <map>
+#include <mutex>
 #include <set>
+#include <string>
 #include <vector>
 #include <regex>
 #include <sdbus-c++/sdbus-c++.h>
@@ -20,7 +22,14 @@ namespace MagicPodsCore {
     class DBusService {
     private:
         std::unique_ptr<sdbus::IProxy> _rootProxy{};
-        std::unique_ptr<sdbus::IProxy> _defaultBluetoothAdapterProxy{};
+
+        // The default adapter is discovered at runtime: BlueZ derives adapter
+        // object paths from the kernel's hci index, which is not stable across
+        // boots (see ResolveDefaultAdapterPath). Shared so an in-flight call
+        // keeps its proxy alive while a hotplug swaps in another one.
+        std::shared_ptr<sdbus::IProxy> _defaultBluetoothAdapterProxy{};
+        std::string _defaultAdapterPath{};
+        mutable std::mutex _defaultAdapterMutex{};
 
         std::map<sdbus::ObjectPath, std::shared_ptr<DBusDeviceInfo>> _knownDevices{};
         std::set<std::shared_ptr<DBusDeviceInfo>> _pairedDevices{};
@@ -41,8 +50,8 @@ namespace MagicPodsCore {
             return _isBluetoothAdapterPowered;
         }
 
-        // MAC address ("XX:XX:XX:XX:XX:XX") of the default bluetooth adapter
-        // (hci0), or an empty string if it could not be read.
+        // MAC address ("XX:XX:XX:XX:XX:XX") of the default bluetooth adapter,
+        // or an empty string if there is no adapter / it could not be read.
         std::string GetDefaultBluetoothAdapterAddress();
 
         void EnableBluetoothAdapter();
@@ -75,6 +84,14 @@ namespace MagicPodsCore {
 
     private:
         void FetchDevices();
+
+        // Asks BlueZ which adapters exist and reports the one to use. Returns
+        // false when BlueZ could not be queried, in which case the caller must
+        // keep its current adapter instead of detaching it.
+        bool ResolveDefaultAdapterPath(std::string& adapterPath);
+        void AttachDefaultAdapter(const std::string& adapterPath);
+        void HandleAdapterListChanged();
+        std::shared_ptr<sdbus::IProxy> CurrentAdapterProxy();
 
         std::shared_ptr<DBusDeviceInfo> TryCreateDevice(sdbus::ObjectPath objectPath, std::map<std::string, std::map<std::string, sdbus::Variant>> interfaces);
         bool TryRemoveDevice(sdbus::ObjectPath objectPath);
